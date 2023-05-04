@@ -18,19 +18,19 @@ get_server_info(){
   declare -p server_info
 }
 
-#input : single server ip or name + cpu freq 2100000
+#input : cpu freq 2100000
 #output : none
 set_cpu_frequency(){
   parallel-ssh -h $hostfile -i -t 0 "cpupower -c all frequency-set -u $1 > /dev/null"
 }
 
-#input : single server ip or name + gpu freq 1410
+#input : gpu freq 1410
 #output : none
 set_gpu_frequency(){
   parallel-ssh -h $hostfile -i -t 0 "nvidia-smi -ac 1512,$1 > /dev/null"
 }
 
-#input : single server ip or name + fan speed 0x64
+#input : fan speed 0x64
 #output : none
 set_fan(){
   parallel-ssh -h $hostfile -i -t 0 "ipmitool raw 0x3C 0x2D 0xFF $1"
