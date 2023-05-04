@@ -54,19 +54,19 @@ get_level(){
 localhost="192.168.0.131"
 servers=( "192.168.0.131" )
 hostfile="hostfile.txt"
-# cpu temp high -> fast fan + down cpu freq
+# cpu temp higher -> faster fan + lower cpu freq
 cpu_temp_holder=( 70 75 80 )
 cpu_temp_holder_fan_speed=( "0x46" "0x50" "0x5a" "0x64" )
 cpu_temp_holder_cpu_freq=( 2100000 2000000 1900000 1800000 )
-# cpu power high -> slow fan + down cpu freq
+# cpu power higher -> slower fan + lower cpu freq
 cpu_powe_holder=( 800 900 1000 )
 cpu_powe_holder_fan_speed=( "0x64" "0x5a" "0x50" "0x46" )
 cpu_powe_holder_cpu_freq=( 2100000 2000000 1900000 1800000 )
 
-# gpu temp high -> slow gpu freq
+# gpu temp higher -> slower gpu freq
 gpu_temp_holder=( 70 74 78 )
 gpu_temp_holder_gpu_freq=( 1410 1380 1290 1200 )
-# gpu power high -> slow gpu freq
+# gpu power higher -> slower gpu freq
 gpu_powe_holder=( 1700 1850 2000 )
 gpu_powe_holder_gpu_freq=( 1410 1380 1290 1200 )
 
@@ -123,6 +123,7 @@ while true; do
   gpu_temp_level=$(get_level "${gpu_temp_holder[*]}" $gpu_temp_avg)
   gpu_powe_level=$(get_level "${gpu_powe_holder[*]}" $gpu_powe_sum)
   
+  # 谁的level高按谁的策略走,不然后者会覆盖前者
   if [ $cpu_temp_level -gt $cpu_powe_level ]; then
     set_cpu_frequency ${cpu_temp_holder_cpu_freq[$cpu_temp_level]}
     set_fan ${cpu_temp_holder_fan_speed[$cpu_temp_level]}
