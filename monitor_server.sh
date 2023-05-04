@@ -22,64 +22,80 @@ get_server_info(){
 #output : none
 up_cpu_frequency(){
   server=$1
+  echo "up $server cpu freq"
   if [[ "$server" == $localhost ]]; then
     cpupower -c all frequency-set -u 2100000 > /dev/null
   else
     ssh root@$server '
-      # Adjust CPU frequency
       cpupower -c all frequency-set -u 2100000 > /dev/null;
     '
   fi
 }
 down_cpu_frequency(){
   server=$1
+  echo "down $server cpu freq"
   if [[ "$server" == $localhost ]]; then
     cpupower -c all frequency-set -u 1540096 > /dev/null
   else
     ssh root@$server '
-      # Adjust CPU frequency
       cpupower -c all frequency-set -u 1540096 > /dev/null;
     '
   fi
 }
 
+#input : single server ip or name
+#output : none
 up_gpu_frequency(){
   server=$1
+  echo "up $server gpu freq"
   if [[ "$server" == $localhost ]]; then
     nvidia-smi -ac 1512,1410 > /dev/null
   else
     ssh root@$server '
-      # Adjust CPU frequency
-      cpupower -c all frequency-set -u 2100000 > /dev/null;
+      nvidia-smi -ac 1512,1410 > /dev/null
+    '
+  fi
+}
+down_gpu_frequency(){
+  server=$1
+  echo "down $server gpu freq"
+  if [[ "$server" == $localhost ]]; then
+    nvidia-smi -ac 1512,1200 > /dev/null
+  else
+    ssh root@$server '
+      nvidia-smi -ac 1512,1200 > /dev/null
     '
   fi
 }
 
-down_gpu_frequency(){
-  echo ""
+#input : single server ip or name
+#output : none
+fast_fan(){
+  server=$1
+  echo "fast $server fan"
+  if [[ "$server" == $localhost ]]; then
+    ipmitool raw 0x3C 0x2D 0xFF 0x64
+  else
+    ssh root@$server '
+      ipmitool raw 0x3C 0x2D 0xFF 0x64
+    '
+  fi
 }
-
-
-adjust_performance() {
-  local avg_temp=$1
-  local power_sum=$2
-  local server_ips=$'\n'
-  read -r -d '' -a server_ips <<< "$3"
-
-  for server_ip in "${server_ips[@]}"; do
-    if (( $(echo "$avg_temp < $TEMP_THRESHOLD" | bc -l) )) && (( $(echo "$power_sum < $POWER_THRESHOLD" | bc -l) )); then
-      echo "Good"
-      up_cpu_frequency "$server_ip"
-    else
-      echo "Adjusting..."
-      down_cpu_frequency "$server_ip"
-    fi
-  done
+slow_fan(){
+  server=$1
+  echo "slow $server fan"
+  if [[ "$server" == $localhost ]]; then
+    ipmitool raw 0x3C 0x2D 0xFF 0x32
+  else
+    ssh root@$server '
+      ipmitool raw 0x3C 0x2D 0xFF 0x32
+    '
+  fi
 }
 
 ## Main
 localhost="192.168.0.131"
-servers=( "192.168.0.131" "192.168.0.133" )
+servers=( "192.168.0.131" )
 cpu_temp_holder=80
 gpu_temp_holder=80
 cpu_powe_holder=1000
@@ -154,7 +170,29 @@ while true; do
   printf "|%-16s|%-16s|%-16s|%-16s|%-16s|\n" $power_sum $cpu_powe_sum $gpu_powe_sum $cpu_temp_avg $gpu_temp_avg
 
   ## adjust
-  
-
+  # cpu temp low, power ok -> up cpu freq and slow fan
+  if (( $(echo "$cpu_temp_avg < $cpu_temp_holder" | bc -l) )) && (( $(echo "$cpu_powe_sum < $cpu_powe_holder" | bc -l) )); then
+    for server in "${servers[@]}"; do
+      up_cpu_frequency $server
+      fast_fan $server
+    done
+  # else -> down cpu freq and fast fan
+  else
+    for server in "${servers[@]}"; do
+      down_cpu_frequency $server
+      fast_fan $server
+    done
+  fi
+  # gpu temp low, power ok -> up gpu freq
+  if (( $(echo "$gpu_temp_avg < $gpu_temp_holder" | bc -l) )) && (( $(echo "$gpu_powe_sum < $gpu_powe_holder" | bc -l) )); then
+    for server in "${servers[@]}"; do
+      up_gpu_frequency $server
+    done
+  # else -> down gpu freq
+  else
+    for server in "${servers[@]}"; do
+      down_gpu_frequency $server
+    done
+  fi
   sleep 2s
 done
