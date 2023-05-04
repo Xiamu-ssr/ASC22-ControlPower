@@ -18,19 +18,19 @@ get_server_info(){
   declare -p server_info
 }
 
-#input : single server ip or name
+#input : single server ip or name + cpu freq 2100000
 #output : none
 set_cpu_frequency(){
   parallel-ssh -h $hostfile -i -t 0 "cpupower -c all frequency-set -u $1 > /dev/null"
 }
 
-#input : single server ip or name
+#input : single server ip or name + gpu freq 1410
 #output : none
 set_gpu_frequency(){
   parallel-ssh -h $hostfile -i -t 0 "nvidia-smi -ac 1512,$1 > /dev/null"
 }
 
-#input : single server ip or name
+#input : single server ip or name + fan speed 0x64
 #output : none
 set_fan(){
   parallel-ssh -h $hostfile -i -t 0 "ipmitool raw 0x3C 0x2D 0xFF $1"
@@ -54,34 +54,35 @@ get_level(){
 localhost="192.168.0.131"
 servers=( "192.168.0.131" )
 hostfile="hostfile.txt"
-# cpu温度高了,做出的策略是调高风扇转速和降低cpu频率
+# cpu temp high -> fast fan + down cpu freq
 cpu_temp_holder=( 70 75 80 )
 cpu_temp_holder_fan_speed=( "0x46" "0x50" "0x5a" "0x64" )
 cpu_temp_holder_cpu_freq=( 2100000 2000000 1900000 1800000 )
-# cpu功率高了,做出的策略是cpu降频
+# cpu power high -> slow fan + down cpu freq
 cpu_powe_holder=( 800 900 1000 )
+cpu_powe_holder_fan_speed=( "0x64" "0x5a" "0x50" "0x46" )
 cpu_powe_holder_cpu_freq=( 2100000 2000000 1900000 1800000 )
 
-# gpu温度高了或者功率高了,做出的策略都是降低gpu频率
+# gpu temp high -> slow gpu freq
 gpu_temp_holder=( 70 74 78 )
 gpu_temp_holder_gpu_freq=( 1410 1380 1290 1200 )
+# gpu power high -> slow gpu freq
 gpu_powe_holder=( 1700 1850 2000 )
 gpu_powe_holder_gpu_freq=( 1410 1380 1290 1200 )
 
 while true; do
   cpu_temp_sum=0
   cpu_temp_cot=0
+  cpu_temp_avg=0
   cpu_powe_sum=0
+
   gpu_temp_sum=0
   gpu_temp_cot=0
+  gpu_temp_avg=0
   gpu_powe_sum=0
   
-  cpu_temp_avg=0
-  gpu_temp_avg=0
   power_sum=0
-  # echo "============================================================"
-  # echo "   Average Power Consumption and Temperature of All Servers"
-  # echo "============================================================"
+
   printf "|%-16s|%-16s|%-16s|%-10s|%-10s|%-10s|%-10s|\n" "Server(IP)" "CPU Temp(avg)" "CPU Power(sum)" "GPU1 Temp" "GPU2 Temp" "GPU1 Power" "GPU2 Power"
   for server in "${servers[@]}"; do
     echo -n "try get server info form $server."
@@ -116,17 +117,25 @@ while true; do
   printf "|%-16s|%-16s|%-16s|%-16s|%-16s|\n" "Power SUM" "CPU Power(sum)" "GPU Power(sum)" "CPU Temp(avg)" "GPU Temp(avg)"
   printf "|%-16s|%-16s|%-16s|%-16s|%-16s|\n" $power_sum $cpu_powe_sum $gpu_powe_sum $cpu_temp_avg $gpu_temp_avg
   echo ""
-  # adjust
+  # get level
   cpu_temp_level=$(get_level "${cpu_temp_holder[*]}" $cpu_temp_avg)
   cpu_powe_level=$(get_level "${cpu_powe_holder[*]}" $cpu_powe_sum)
   gpu_temp_level=$(get_level "${gpu_temp_holder[*]}" $gpu_temp_avg)
   gpu_powe_level=$(get_level "${gpu_powe_holder[*]}" $gpu_powe_sum)
   
-  #响应cpu temp level
-  set_cpu_frequency ${cpu_temp_holder_cpu_freq[$cpu_temp_level]}
-  set_fan ${cpu_temp_holder_fan_speed[$cpu_temp_level]}
-  #响应cpu power level
-  
+  if [ $cpu_temp_level -gt $cpu_powe_level ]; then
+    set_cpu_frequency ${cpu_temp_holder_cpu_freq[$cpu_temp_level]}
+    set_fan ${cpu_temp_holder_fan_speed[$cpu_temp_level]}
+  else
+    set_cpu_frequency ${cpu_powe_holder_cpu_freq[$cpu_powe_level]}
+    set_fan ${cpu_powe_holder_fan_speed[$cpu_powe_level]}
+  fi
+
+  if [ $gpu_temp_level -gt $gpu_powe_level ]; then
+    set_gpu_frequency ${gpu_temp_holder_gpu_freq[$gpu_temp_level]}
+  else
+    set_gpu_frequency ${gpu_powe_holder_gpu_freq[$gpu_powe_level]}
+  fi
   
   sleep 0.5s
 done

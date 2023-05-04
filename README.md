@@ -8,32 +8,32 @@
 ## 前置准备
 ### 服务器之间设置好ssh免密
 ### 安装相关工具包
-sensors```apt install lm-sensors```\
-cpupower```apt install linux-tools-common```\
-parallel-ssh```apt-get install pssh```\
-fancontrol```apt install fancontrol```\
-nvidia-smi
+sensors\
+cpupower\
+parallel-ssh\
+fancontrol\
+nvidia-smi\
+```apt install lm-sensors linux-tools-common pssh fancontrol```
 ### 查看cpu和gpu信息
-```cpupower -c all frequency-info```注意cpu最低最高频率\
-```nvidia-smi -q```注意gpu最低最高频率\
-```nvidia-smi -q -d SUPPORTED_CLOCKS```查看你gpu支持设置的频率\
-```nvidia-smi -pm 1 ```打开编写模式\
+```cpupower -c all frequency-info```
+注意cpu最低最高频率\
+```nvidia-smi -q```
+注意gpu最低最高频率\
+```nvidia-smi -q -d SUPPORTED_CLOCKS```
+查看你gpu支持设置的频率\
+```nvidia-smi -pm 1 ```
+打开编写模式\
 ```nvidia-smi -ac 1512,1200```\
-```nvidia-smi ```验证是否修改成功\
-```vidia-smi -pm 0 ```把编写模式关闭。
+```nvidia-smi ```
+验证是否修改成功\
+```vidia-smi -pm 0 ```
+把编写模式关闭。
 
 ## 脚本
 ### auto.sh
 自动监控服务器并调整
 ```
-## Main
-localhost="192.168.0.131"
-servers=( "192.168.0.131" )
-hostfile="hostfile.txt"
-cpu_temp_holder=80
-gpu_temp_holder=80
-cpu_powe_holder=1000
-gpu_powe_holder=2000
+nothing write here
 ```
 ### monitor.sh
 只监控不调整
