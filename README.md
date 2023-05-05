@@ -12,8 +12,9 @@ sensors\
 cpupower\
 parallel-ssh\
 fancontrol\
+ipmitool\
 nvidia-smi\
-```apt install lm-sensors linux-tools-common pssh fancontrol```
+```apt install lm-sensors linux-tools-common pssh fancontrol ipmitool```
 ### 查看cpu和gpu信息
 ```cpupower -c all frequency-info```
 注意cpu最低最高频率\
@@ -82,5 +83,5 @@ nvidia-smi -q
 ```
 * 检验风扇是否升降速
 ```
-watch -n 1 "ipmitool sensor | grep FAN"
+watch -n 1 bash watch-fan.sh
 ```

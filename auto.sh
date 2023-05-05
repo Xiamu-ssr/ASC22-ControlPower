@@ -18,103 +18,71 @@ get_server_info(){
   declare -p server_info
 }
 
-#input : single server ip or name
+#input : cpu freq 2100000
 #output : none
-up_cpu_frequency(){
-  server=$1
-  echo "up $server cpu freq"
-  if [[ "$server" == $localhost ]]; then
-    cpupower -c all frequency-set -u 2100000 > /dev/null
-  else
-    ssh root@$server '
-      cpupower -c all frequency-set -u 2100000 > /dev/null;
-    '
-  fi
-}
-down_cpu_frequency(){
-  server=$1
-  echo "down $server cpu freq"
-  if [[ "$server" == $localhost ]]; then
-    cpupower -c all frequency-set -u 1540096 > /dev/null
-  else
-    ssh root@$server '
-      cpupower -c all frequency-set -u 1540096 > /dev/null;
-    '
-  fi
+set_cpu_frequency(){
+  parallel-ssh -h $hostfile -i -t 0 "cpupower -c all frequency-set -u $1 > /dev/null"
 }
 
-#input : single server ip or name
+#input : gpu freq 1410
 #output : none
-up_gpu_frequency(){
-  server=$1
-  echo "up $server gpu freq"
-  if [[ "$server" == $localhost ]]; then
-    nvidia-smi -ac 1512,1410 > /dev/null
-  else
-    ssh root@$server '
-      nvidia-smi -ac 1512,1410 > /dev/null
-    '
-  fi
-}
-down_gpu_frequency(){
-  server=$1
-  echo "down $server gpu freq"
-  if [[ "$server" == $localhost ]]; then
-    nvidia-smi -ac 1512,1200 > /dev/null
-  else
-    ssh root@$server '
-      nvidia-smi -ac 1512,1200 > /dev/null
-    '
-  fi
+set_gpu_frequency(){
+  parallel-ssh -h $hostfile -i -t 0 "nvidia-smi -ac 1512,$1 > /dev/null"
 }
 
-#input : single server ip or name
+#input : fan speed 0x64
 #output : none
-fast_fan(){
-  server=$1
-  echo "fast $server fan"
-  if [[ "$server" == $localhost ]]; then
-    ipmitool raw 0x3C 0x2D 0xFF 0x64
-  else
-    ssh root@$server '
-      ipmitool raw 0x3C 0x2D 0xFF 0x64
-    '
-  fi
+set_fan(){
+  parallel-ssh -h $hostfile -i -t 0 "ipmitool raw 0x3C 0x2D 0xFF $1 > /dev/null"
 }
-slow_fan(){
-  server=$1
-  echo "slow $server fan"
-  if [[ "$server" == $localhost ]]; then
-    ipmitool raw 0x3C 0x2D 0xFF 0x32
-  else
-    ssh root@$server '
-      ipmitool raw 0x3C 0x2D 0xFF 0x32
-    '
-  fi
+
+#input : arr and a single
+#output : level
+get_level(){
+  local flag=0
+  for i in $1; do
+    if [[ $(echo "$2 > $i" | bc -l) -eq "1" ]]; then
+      flag=$((flag+1))
+    else
+      break
+    fi
+  done
+  echo $flag
 }
 
 ## Main
 localhost="192.168.0.131"
-servers=( "192.168.0.131" )
-cpu_temp_holder=80
-gpu_temp_holder=80
-cpu_powe_holder=1000
-gpu_powe_holder=2000
+servers=( "192.168.0.131" "192.168.0.133" )
+hostfile="hostfile.txt"
+# cpu temp higher -> faster fan + lower cpu freq
+cpu_temp_holder=( 70 76 82 )
+cpu_temp_holder_fan_speed=( "0x46" "0x50" "0x5a" "0x64" )
+cpu_temp_holder_cpu_freq=( 2100000 2000000 1900000 1800000 )
+# cpu power higher -> slower fan + lower cpu freq
+cpu_powe_holder=( 200 400 900 )
+cpu_powe_holder_fan_speed=( "0x64" "0x5a" "0x50" "0x46" )
+cpu_powe_holder_cpu_freq=( 2100000 2000000 1900000 1800000 )
+
+# gpu temp higher -> slower gpu freq
+gpu_temp_holder=( 70 75 80 )
+gpu_temp_holder_gpu_freq=( 1410 1380 1290 1200 )
+# gpu power higher -> slower gpu freq
+gpu_powe_holder=( 1700 1850 2000 )
+gpu_powe_holder_gpu_freq=( 1410 1380 1290 1200 )
 
 while true; do
   cpu_temp_sum=0
   cpu_temp_cot=0
+  cpu_temp_avg=0
   cpu_powe_sum=0
+
   gpu_temp_sum=0
   gpu_temp_cot=0
+  gpu_temp_avg=0
   gpu_powe_sum=0
   
-  cpu_temp_avg=0
-  gpu_temp_avg=0
   power_sum=0
-  # echo "============================================================"
-  # echo "   Average Power Consumption and Temperature of All Servers"
-  # echo "============================================================"
+
   printf "|%-16s|%-16s|%-16s|%-10s|%-10s|%-10s|%-10s|\n" "Server(IP)" "CPU Temp(avg)" "CPU Power(sum)" "GPU1 Temp" "GPU2 Temp" "GPU1 Power" "GPU2 Power"
   for server in "${servers[@]}"; do
     echo -n "try get server info form $server."
@@ -124,8 +92,10 @@ while true; do
     tput el
     cpu_temp_tmp=${server_info[cpu_temp]}
     cpu_powe_tmp=${server_info[cpu_power]}
-    gpu_temp_tmp=(${server_info[gpu_temp]})
-    gpu_powe_tmp=(${server_info[gpu_power]})
+    # gpu_temp_tmp=(${server_info[gpu_temp]})
+    gpu_temp_tmp=( 25 26 )
+    # gpu_powe_tmp=(${server_info[gpu_power]})
+    gpu_powe_tmp=( 54 56)
     #计算单台服务器cpu总温度和cpu总核数
     cpu_t_sum_local=0
     cpu_t_cot_local=0
@@ -145,34 +115,36 @@ while true; do
   cpu_temp_avg=$(echo "scale=2; $cpu_temp_sum / $cpu_temp_cot" | bc)
   gpu_temp_avg=$(echo "scale=2; $gpu_temp_sum / $gpu_temp_cot" | bc)
   power_sum=$(echo "$cpu_powe_sum + $gpu_powe_sum" | bc)
+  sleep 3s
   clear
   printf "|%-16s|%-16s|%-16s|%-16s|%-16s|\n" "Power SUM" "CPU Power(sum)" "GPU Power(sum)" "CPU Temp(avg)" "GPU Temp(avg)"
   printf "|%-16s|%-16s|%-16s|%-16s|%-16s|\n" $power_sum $cpu_powe_sum $gpu_powe_sum $cpu_temp_avg $gpu_temp_avg
   echo ""
-  # adjust
-  cpu temp low, power ok -> up cpu freq and slow fan
-  if (( $(echo "$cpu_temp_avg < $cpu_temp_holder" | bc -l) )) && (( $(echo "$cpu_powe_sum < $cpu_powe_holder" | bc -l) )); then
-    for server in "${servers[@]}"; do
-      up_cpu_frequency $server
-      fast_fan $server
-    done
-  # else -> down cpu freq and fast fan
+  # get level
+  cpu_temp_level=$(get_level "${cpu_temp_holder[*]}" $cpu_temp_avg)
+  cpu_powe_level=$(get_level "${cpu_powe_holder[*]}" $cpu_powe_sum)
+  gpu_temp_level=$(get_level "${gpu_temp_holder[*]}" $gpu_temp_avg)
+  gpu_powe_level=$(get_level "${gpu_powe_holder[*]}" $gpu_powe_sum)
+  echo "cpu temp level$cpu_temp_level"
+  echo "cpu power level$cpu_powe_level"
+  echo "gpu temp level$gpu_temp_level"
+  echo "gpu powe level$gpu_powe_level"
+
+  #谁的level高按谁的策略走,不然后者会覆盖前者,=走power
+  if (( $cpu_temp_level > $cpu_powe_level )); then
+    echo "use cpu temp strategy"
+    set_cpu_frequency ${cpu_temp_holder_cpu_freq[$cpu_temp_level]}
+    set_fan ${cpu_temp_holder_fan_speed[$cpu_temp_level]}
   else
-    for server in "${servers[@]}"; do
-      down_cpu_frequency $server
-      fast_fan $server
-    done
+    echo "use cpu power strategy"
+    set_cpu_frequency ${cpu_powe_holder_cpu_freq[$cpu_powe_level]}
+    set_fan ${cpu_powe_holder_fan_speed[$cpu_powe_level]}
   fi
-  # gpu temp low, power ok -> up gpu freq
-  if (( $(echo "$gpu_temp_avg < $gpu_temp_holder" | bc -l) )) && (( $(echo "$gpu_powe_sum < $gpu_powe_holder" | bc -l) )); then
-    for server in "${servers[@]}"; do
-      up_gpu_frequency $server
-    done
-  # else -> down gpu freq
-  else
-    for server in "${servers[@]}"; do
-      down_gpu_frequency $server
-    done
-  fi
-  sleep 0.5s
+
+  # if (( $gpu_temp_level > $gpu_powe_level )); then
+  #   set_gpu_frequency ${gpu_temp_holder_gpu_freq[$gpu_temp_level]}
+  # else
+  #   set_gpu_frequency ${gpu_powe_holder_gpu_freq[$gpu_powe_level]}
+  # fi
+  
 done
