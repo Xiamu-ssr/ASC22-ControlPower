@@ -59,7 +59,7 @@ cpu_temp_holder=( 70 76 82 )
 cpu_temp_holder_fan_speed=( "0x46" "0x50" "0x5a" "0x64" )
 cpu_temp_holder_cpu_freq=( 2100000 2000000 1900000 1800000 )
 # cpu power higher -> slower fan + lower cpu freq
-cpu_powe_holder=( 200 400 900 )
+cpu_powe_holder=( 800 900 1000 )
 cpu_powe_holder_fan_speed=( "0x64" "0x5a" "0x50" "0x46" )
 cpu_powe_holder_cpu_freq=( 2100000 2000000 1900000 1800000 )
 
