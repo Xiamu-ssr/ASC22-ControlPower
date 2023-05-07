@@ -19,8 +19,8 @@ get_server_info(){
 }
 
 ## Main
-localhost="192.168.0.131"
-servers=( "192.168.0.131" )
+localhost="192.168.3.111"
+servers=( "192.168.3.111" "192.168.3.112" "192.168.3.113" )
 
 while true; do
   cpu_temp_sum=0
@@ -47,6 +47,7 @@ while true; do
     cpu_powe_tmp=${server_info[cpu_power]}
     gpu_temp_tmp=(${server_info[gpu_temp]})
     gpu_powe_tmp=(${server_info[gpu_power]})
+    echo "cpu temp $cpu_powe_tmp"
     #计算单台服务器cpu总温度和cpu总核数
     cpu_t_sum_local=0
     cpu_t_cot_local=0
@@ -66,9 +67,9 @@ while true; do
   cpu_temp_avg=$(echo "scale=2; $cpu_temp_sum / $cpu_temp_cot" | bc)
   gpu_temp_avg=$(echo "scale=2; $gpu_temp_sum / $gpu_temp_cot" | bc)
   power_sum=$(echo "$cpu_powe_sum + $gpu_powe_sum" | bc)
+  sleep 2.5s
   clear
   printf "|%-16s|%-16s|%-16s|%-16s|%-16s|\n" "Power SUM" "CPU Power(sum)" "GPU Power(sum)" "CPU Temp(avg)" "GPU Temp(avg)"
   printf "|%-16s|%-16s|%-16s|%-16s|%-16s|\n" $power_sum $cpu_powe_sum $gpu_powe_sum $cpu_temp_avg $gpu_temp_avg
   echo ""
-  sleep 0.5s
 done

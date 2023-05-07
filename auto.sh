@@ -12,9 +12,9 @@ get_server_info(){
   fi
   declare -A server_info
   server_info["cpu_temp"]=$(echo $info | grep -oE ':\s[+-][0-9]+\.[0-9]+°C'  | grep -oE '[0-9]+\.[0-9]')
-  server_info["cpu_power"]=$(echo $info | grep -oE 'power[0-9]:\s[0-9]+\.[0-9]+\sW' | grep -oE '[0-9]+\.[0-9]+')
+  server_info["cpu_power"]=$(echo $info | grep -oE 'power[0-9]:\s[0-9]+.[0-9]+\sW' | grep -oE '[0-9]+\.[0-9]+')
   server_info["gpu_temp"]=$(echo $info | grep -oE '[0-9]+,' | grep -oE '[0-9]+')
-  server_info["gpu_power"]=$(echo $info | grep -oE ',\s[0-9]+\.[0-9]+\sW' | grep -oE '[0-9]+\.[0-9]+')
+  server_info["gpu_power"]=$(echo $info | grep -oE ',\s[0-9]+.[0-9]+\sW' | grep -oE '[0-9]+\.[0-9]+')
   declare -p server_info
 }
 
@@ -51,8 +51,8 @@ get_level(){
 }
 
 ## Main
-localhost="192.168.0.131"
-servers=( "192.168.0.131" "192.168.0.133" )
+localhost="192.168.1.110"
+servers=( "192.168.1.110")
 hostfile="hostfile.txt"
 # cpu temp higher -> faster fan + lower cpu freq
 cpu_temp_holder=( 70 76 82 )
@@ -131,15 +131,15 @@ while true; do
   echo "gpu powe level$gpu_powe_level"
 
   #谁的level高按谁的策略走,不然后者会覆盖前者,=走power
-  if (( $cpu_temp_level > $cpu_powe_level )); then
-    echo "use cpu temp strategy"
-    set_cpu_frequency ${cpu_temp_holder_cpu_freq[$cpu_temp_level]}
-    set_fan ${cpu_temp_holder_fan_speed[$cpu_temp_level]}
-  else
-    echo "use cpu power strategy"
-    set_cpu_frequency ${cpu_powe_holder_cpu_freq[$cpu_powe_level]}
-    set_fan ${cpu_powe_holder_fan_speed[$cpu_powe_level]}
-  fi
+  # if (( $cpu_temp_level > $cpu_powe_level )); then
+  #   echo "use cpu temp strategy"
+  #   set_cpu_frequency ${cpu_temp_holder_cpu_freq[$cpu_temp_level]}
+  #   set_fan ${cpu_temp_holder_fan_speed[$cpu_temp_level]}
+  # else
+  #   echo "use cpu power strategy"
+  #   set_cpu_frequency ${cpu_powe_holder_cpu_freq[$cpu_powe_level]}
+  #   set_fan ${cpu_powe_holder_fan_speed[$cpu_powe_level]}
+  # fi
 
   # if (( $gpu_temp_level > $gpu_powe_level )); then
   #   set_gpu_frequency ${gpu_temp_holder_gpu_freq[$gpu_temp_level]}
